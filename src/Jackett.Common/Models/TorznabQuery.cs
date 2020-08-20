@@ -16,7 +16,9 @@ namespace Jackett.Common.Models
         public int Limit { get; set; }
         public int Offset { get; set; }
         public int? RageID { get; set; }
+        public int? TvdbID { get; set; }
         public string ImdbID { get; set; }
+        public int? TmdbID { get; set; }
 
         public int Season { get; set; }
         public string Episode { get; set; }
@@ -28,6 +30,9 @@ namespace Jackett.Common.Models
         public string Track { get; set; }
         public int? Year { get; set; }
         public ICollection<string> Genre { get; set; }
+
+        public string Author { get; set; }
+        public string Title { get; set; }
 
         public bool IsTest { get; set; }
 
@@ -43,9 +48,15 @@ namespace Jackett.Common.Models
 
         public bool IsMusicSearch => QueryType == "music";
 
+        public bool IsBookSearch => QueryType == "book";
+
         public bool IsTVRageSearch => RageID != null;
 
+        public bool IsTvdbSearch => TvdbID != null;
+
         public bool IsImdbQuery => ImdbID != null;
+
+        public bool IsTmdbQuery => TmdbID != null;
 
         public bool HasSpecifiedCategories => (Categories != null && Categories.Length > 0);
 
@@ -56,7 +67,7 @@ namespace Jackett.Common.Models
                 var term = SearchTerm;
                 if (SearchTerm == null)
                     term = "";
-                var safetitle = term.Where(c => (char.IsLetterOrDigit(c)
+                var safeTitle = term.Where(c => (char.IsLetterOrDigit(c)
                                                  || char.IsWhiteSpace(c)
                                                  || c == '-'
                                                  || c == '.'
@@ -70,8 +81,8 @@ namespace Jackett.Common.Models
                                                  || c == ']'
                                                  || c == '+'
                                                  || c == '%'
-                                               )).AsString();
-                return safetitle;
+                                               ));
+                return string.Concat(safeTitle);
             }
         }
 
@@ -105,38 +116,39 @@ namespace Jackett.Common.Models
 
         public TorznabQuery Clone()
         {
-            var ret = new TorznabQuery();
-            ret.QueryType = QueryType;
-            if (Categories != null && Categories.Length > 0)
+            var ret = new TorznabQuery
+            {
+                QueryType = QueryType,
+                Extended = Extended,
+                ApiKey = ApiKey,
+                Limit = Limit,
+                Offset = Offset,
+                Season = Season,
+                Episode = Episode,
+                SearchTerm = SearchTerm,
+                IsTest = IsTest,
+                Album = Album,
+                Artist = Artist,
+                Label = Label,
+                Track = Track,
+                Year = Year,
+                Author = Author,
+                Title = Title,
+                RageID = RageID,
+                TvdbID = TvdbID,
+                ImdbID = ImdbID,
+                TmdbID = TmdbID
+            };
+            if (Categories?.Length > 0)
             {
                 ret.Categories = new int[Categories.Length];
                 Array.Copy(Categories, ret.Categories, Categories.Length);
             }
-            ret.Extended = Extended;
-            ret.ApiKey = ApiKey;
-            ret.Limit = Limit;
-            ret.Offset = Offset;
-            ret.Season = Season;
-            ret.Episode = Episode;
-            ret.SearchTerm = SearchTerm;
-            ret.IsTest = IsTest;
-            ret.Album = Album;
-            ret.Artist = Artist;
-            ret.Label = Label;
-            ret.Track = Track;
-            ret.Year = Year;
-            if (Genre != null)
-            {
-                // Make a copied list and then don't use it?
-                Genre.Select(item => item.Clone()).ToList();
-            }
-            if (QueryStringParts != null && QueryStringParts.Length > 0)
+            if (QueryStringParts?.Length > 0)
             {
                 ret.QueryStringParts = new string[QueryStringParts.Length];
                 Array.Copy(QueryStringParts, ret.QueryStringParts, QueryStringParts.Length);
             }
-            ret.RageID = RageID;
-            ret.ImdbID = ImdbID;
 
             return ret;
         }
@@ -151,9 +163,8 @@ namespace Jackett.Common.Models
             // We cache the regex split results so we have to do it only once for each query.
             if (QueryStringParts == null)
             {
-                var queryString = GetQueryString();
-                if (queryStringOverride != null)
-                    queryString = queryStringOverride;
+                var queryString = !string.IsNullOrWhiteSpace(queryStringOverride) ? queryStringOverride : GetQueryString();
+
                 if (limit != null && limit > 0)
                 {
                     if (limit > queryString.Length)
